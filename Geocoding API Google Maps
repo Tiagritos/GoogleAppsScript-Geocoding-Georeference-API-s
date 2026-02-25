@@ -1,7 +1,8 @@
 /**
  * Realiza geocodificação de endereços em uma planilha Google Sheets
  * utilizando a Google Geocoding API.
- * 
+ * Rodando a função no GoogleAppsScript
+ *
  * Preenche automaticamente:
  * - Latitude
  * - Longitude
