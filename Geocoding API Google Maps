@@ -1,0 +1,116 @@
+/**
+ * Realiza geocodificação de endereços em uma planilha Google Sheets
+ * utilizando a Google Geocoding API.
+ * 
+ * Preenche automaticamente:
+ * - Latitude
+ * - Longitude
+ * - CEP (se estiver vazio)
+ * - Bairro (se estiver vazio)
+ * 
+ * CONFIGURE os parâmetros antes de executar.
+ */
+
+function geocodeSpreadsheet() {
+
+  // ===== CONFIGURAÇÕES =====
+  const spreadsheetId = 'SEU_SPREADSHEET_ID_AQUI';
+  const sheetName = 'NOME_DA_ABA';
+  const apiKey = 'SUA_API_KEY_AQUI';
+
+  const city = 'SUA_CIDADE';
+  const state = 'SEU_ESTADO';
+  const country = 'SEU_PAIS';
+
+  // Colunas (baseadas em índice númerico, começando em 1)
+  const COL_ENDERECO = 1;  // Ex: Coluna A
+  const COL_BAIRRO = 2;    // Ex: Coluna B
+  const COL_CEP = 3;       // Ex: Coluna C
+  const COL_LAT = 4;       // Ex: Coluna D
+  const COL_LON = 5;      // Ex: Coluna E
+
+  // ==========================
+
+  const sheet = SpreadsheetApp.openById(spreadsheetId).getSheetByName(sheetName);
+  const lastRow = sheet.getLastRow();
+
+  // Dados começam na linha 2 e vão até a última linha preenchida
+  for (let row = 2; row <= lastRow; row++) {
+
+    const endereco = sheet.getRange(row, COL_ENDERECO).getValue();
+    const bairro = sheet.getRange(row, COL_BAIRRO).getValue();
+    const cep = sheet.getRange(row, COL_CEP).getValue();
+
+    const latitude = sheet.getRange(row, COL_LAT).getValue();
+    const longitude = sheet.getRange(row, COL_LON).getValue();
+
+    // Se não há dados mínimos
+    if (!endereco && !bairro && !cep) {
+      sheet.getRange(row, COL_LAT).setValue("NO_COORDINATES");
+      sheet.getRange(row, COL_LON).setValue("NO_COORDINATES");
+      continue;
+    }
+
+    // Se já possui coordenadas, ignora
+    if (latitude && longitude) {
+      continue;
+    }
+
+    // Monta endereço completo
+    const addressParts = [];
+    if (endereco) addressParts.push(endereco);
+    if (bairro) addressParts.push(bairro);
+    if (cep) addressParts.push(cep);
+    addressParts.push(`${city}, ${state}, ${country}`);
+
+    const fullAddress = addressParts.join(", ");
+    const encodedAddress = encodeURIComponent(fullAddress);
+
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${apiKey}`;
+
+    try {
+      const response = UrlFetchApp.fetch(url);
+      const json = JSON.parse(response.getContentText());
+
+      if (json.status === "OK") {
+
+        const result = json.results[0];
+        const lat = result.geometry.location.lat;
+        const lon = result.geometry.location.lng;
+
+        sheet.getRange(row, COL_LAT).setValue(lat);
+        sheet.getRange(row, COL_LON).setValue(lon);
+
+        // Extrai CEP
+        const cepComponent = result.address_components.find(c =>
+          c.types.includes("postal_code")
+        );
+
+        if (!cep && cepComponent) {
+          sheet.getRange(row, COL_CEP).setValue(cepComponent.long_name);
+        }
+
+        // Extrai Bairro
+        const bairroComponent = result.address_components.find(c =>
+          c.types.includes("neighborhood") ||
+          c.types.includes("sublocality") ||
+          c.types.includes("sublocality_level_1")
+        );
+
+        if (!bairro && bairroComponent) {
+          sheet.getRange(row, COL_BAIRRO).setValue(
+            bairroComponent.long_name.toUpperCase()
+          );
+        }
+
+      } else {
+        Logger.log(`Erro na linha ${row}: ${json.status}`);
+      }
+
+    } catch (error) {
+      Logger.log(`Erro na linha ${row}: ${error.message}`);
+    }
+
+    Utilities.sleep(1000); // Controle básico de rate limit
+  }
+}
