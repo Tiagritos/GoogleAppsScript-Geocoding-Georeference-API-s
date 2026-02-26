@@ -1,0 +1,127 @@
+/**
+ * Geocodifica endereços do Google Sheets usando o
+ * OpenStreetMap Nominatim (via external proxy/worker).
+ *
+ * Funções:
+ * - Múltiplas tentativas de composição do endereço
+ * - Estratégia de tentativa progressiva
+ * - Processamento consciente dos filtros aplicados na planilha (pula linhas ocultadas)
+ * - Preenche Latitute, Longitude e CEP caso esteja faltante
+ *
+ * Construído para o ambiente do GoogleAppsScript
+ */
+
+function geocodeWithNominatimWorker() {
+
+  // ===== CONFIGURAÇÕES =====
+  const spreadsheetId = 'YOUR_SPREADSHEET_ID';
+  const sheetName = 'YOUR_SHEET_NAME';
+
+  const workerUrl = 'YOUR_WORKER_ENDPOINT_URL';
+  const contactEmail = 'your-email@example.com';
+
+  const city = 'YOUR_CITY';
+  const state = 'YOUR_STATE';
+  const country = 'YOUR_COUNTRY';
+
+  const maxAttempts = 5;
+  const baseSleep = 2000;
+
+  // Colunas (índice númerico simples)
+  const COL_DISTRICT = 1;
+  const COL_ADDRESS  = 2;
+  const COL_NEIGHBOR = 3;
+  const COL_POSTAL   = 4;
+  const COL_LAT      = 5;
+  const COL_LON      = 6;
+  // ==========================
+
+  const sheet = SpreadsheetApp
+    .openById(spreadsheetId)
+    .getSheetByName(sheetName);
+
+  const lastRow = sheet.getLastRow();
+
+  for (let row = 2; row <= lastRow; row++) {
+
+    if (sheet.isRowHiddenByFilter(row)) continue;
+
+    const address = sheet.getRange(row, COL_ADDRESS).getValue();
+    const neighbor = sheet.getRange(row, COL_NEIGHBOR).getValue();
+    const district = sheet.getRange(row, COL_DISTRICT).getValue();
+
+    const postalCell = sheet.getRange(row, COL_POSTAL);
+    const latCell = sheet.getRange(row, COL_LAT);
+    const lonCell = sheet.getRange(row, COL_LON);
+
+    if (!address) continue;
+
+    const normalize = (text) =>
+      text
+        ? text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim()
+        : "";
+
+    const normAddress = normalize(address);
+    const normNeighbor = normalize(neighbor);
+    const normDistrict = normalize(district);
+
+    const attemptsList = [
+      `${normAddress}${normNeighbor ? ", " + normNeighbor : ""}, ${city}, ${state}, ${country}`,
+      `${normAddress}, ${city}, ${state}, ${country}`,
+      `${normAddress}${normDistrict ? ", " + normDistrict : ""}, ${city}, ${state}, ${country}`
+    ];
+
+    let found = false;
+
+    for (let t = 0; t < attemptsList.length && !found; t++) {
+
+      for (let attempt = 1; attempt <= maxAttempts && !found; attempt++) {
+
+        try {
+
+          const query = encodeURIComponent(attemptsList[t]);
+          const url = `${workerUrl}?q=${query}&email=${encodeURIComponent(contactEmail)}`;
+
+          const response = UrlFetchApp.fetch(url, {
+            method: "get",
+            muteHttpExceptions: true
+          });
+
+          const workerJson = JSON.parse(response.getContentText());
+
+          if (workerJson.status === 200) {
+
+            const results = JSON.parse(workerJson.response);
+
+            if (results && results.length > 0) {
+
+              const bestMatch = results[0];
+
+              const lat = bestMatch.lat;
+              const lon = bestMatch.lon;
+              const postal = bestMatch.address?.postcode || "";
+
+              if (!latCell.getValue() && lat) latCell.setValue(lat);
+              if (!lonCell.getValue() && lon) lonCell.setValue(lon);
+
+              if (
+                !postalCell.getValue() &&
+                /^\d{5}-?\d{3}$/.test(postal)
+              ) {
+                postalCell.setValue(postal);
+              }
+
+              found = true;
+              break;
+            }
+          }
+
+        } catch (error) {
+          Logger.log(`Row ${row} attempt ${attempt}: ${error.message}`);
+        }
+
+        Utilities.sleep(baseSleep * attempt);
+      }
+    }
+  }
+}
