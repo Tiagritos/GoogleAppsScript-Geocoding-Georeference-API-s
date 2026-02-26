@@ -64,9 +64,9 @@ This implementation uses the official Google Maps Geocoding API to convert addre
 ### Flow
 
 Google Sheets  
-↓  
+    ↓  
 Google Apps Script  
-↓  
+    ↓  
 Google Maps Geocoding API  
 
 ### Characteristics
@@ -95,11 +95,11 @@ The proxy is required to:
 ### Flow
 
 Google Sheets  
-↓  
+    ↓  
 Google Apps Script (Client)  
-↓  
+    ↓  
 Proxy Worker  
-↓  
+    ↓  
 OpenStreetMap Nominatim API  
 
 ### Features
