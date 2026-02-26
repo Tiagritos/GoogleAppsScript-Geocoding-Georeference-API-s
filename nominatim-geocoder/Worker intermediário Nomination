@@ -1,0 +1,68 @@
+/**
+ * Proxy Worker para o OpenStreetMap Nominatim
+ * 
+ * Esse GoogleAppsScript trabalha como um intermediário
+ * entre a aplicação de um cliente e a API Nominatim
+ *
+ * Função:
+ * - Add. de identificação de email necessário para o bom funcionamento da API Nominatim
+ * - Estabelece um User-Agent header costumizado
+ * - Previni expor os pedidos lógicos do client-side
+ * - Retorna respostas padronizadas em JSON
+ *
+ * Endpoint usage:
+ * ?q=ADDRESS_STRING&email=CONTACT_EMAIL
+ */
+
+function doGet(e) {
+
+  const query = e.parameter.q;
+  const email = e.parameter.email;
+
+  if (!query || !email) {
+    return jsonResponse({
+      error: "Missing required parameters: q or email"
+    });
+  }
+
+  const nominatimUrl =
+    "https://nominatim.openstreetmap.org/search" +
+    "?q=" + encodeURIComponent(query) +
+    "&format=json" +
+    "&addressdetails=1" +
+    "&limit=1" +
+    "&email=" + encodeURIComponent(email);
+
+  try {
+
+    const response = UrlFetchApp.fetch(nominatimUrl, {
+      method: "get",
+      muteHttpExceptions: true,
+      headers: {
+        "User-Agent": "GeocodingProxyWorker/1.0 (" + email + ")"
+      }
+    });
+
+    return jsonResponse({
+      status: response.getResponseCode(),
+      response: response.getContentText()
+    });
+
+  } catch (error) {
+
+    return jsonResponse({
+      error: error.message
+    });
+
+  }
+}
+
+
+/**
+ * Utility function to standardize JSON output
+ */
+function jsonResponse(payload) {
+  return ContentService
+    .createTextOutput(JSON.stringify(payload))
+    .setMimeType(ContentService.MimeType.JSON);
+}

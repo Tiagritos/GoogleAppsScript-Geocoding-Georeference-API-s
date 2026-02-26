@@ -1,0 +1,102 @@
+GEOCODING AUTOMATION - PROJECT DOCUMENTATION
+
+This document explains the purpose and functionality of the two
+geocoding implementations available in this repository:
+
+1)  Google Maps Geocoding API
+2)  OpenStreetMap Nominatim (via Proxy Worker)
+
+  -----------------------------------------
+  1) GOOGLE MAPS GEOCODING IMPLEMENTATION
+  -----------------------------------------
+
+Overview: The Google Maps Geocoding implementation uses the official
+Google Maps Geocoding API to convert addresses into geographic
+coordinates (latitude and longitude).
+
+How it works:
+
+-   The script reads address data from a Google Sheet.
+-   For each row, it builds a full address string.
+-   It sends a request to the Google Maps Geocoding API.
+-   The API returns structured geographic data.
+-   The script extracts:
+    -   Latitude
+    -   Longitude
+    -   (Optional) Postal code
+-   The sheet is updated only if the coordinate fields are empty,
+    preventing overwriting existing data.
+
+Key Characteristics:
+
+-   Uses official Google API.
+-   Requires an API key.
+-   High accuracy and structured results.
+-   Subject to Google billing and quota limits.
+-   Simple direct architecture (Client → Google API).
+
+Architecture:
+
+Google Sheets ↓ Apps Script ↓ Google Maps Geocoding API
+
+  -------------------------------------------
+  2) OPENSTREETMAP NOMINATIM IMPLEMENTATION
+  -------------------------------------------
+
+Overview: The Nominatim implementation uses the OpenStreetMap Nominatim
+API to convert addresses into geographic coordinates. Because Nominatim
+requires proper identification and headers, a proxy worker is used as an
+intermediary.
+
+How it works:
+
+Client Script: - Reads address data from Google Sheets. - Normalizes
+text (removes accents and trims spaces). - Attempts multiple address
+combinations: 1) Address + neighborhood 2) Address only 3) Address +
+district - Sends request to proxy worker endpoint. - Implements
+progressive retry logic. - Updates latitude, longitude and postal code
+if found.
+
+Proxy Worker: - Receives address query and contact email. - Adds
+required User-Agent header. - Forwards request to Nominatim API. -
+Returns standardized JSON response. - Handles error formatting.
+
+Key Characteristics:
+
+-   Free and open data (OpenStreetMap).
+-   Requires proper identification (email + User-Agent).
+-   Uses retry logic to improve reliability.
+-   Uses fallback strategies to improve matching.
+-   Architecture includes proxy layer.
+
+Architecture:
+
+Google Sheets ↓ Apps Script (Client) ↓ Proxy Worker ↓ OpenStreetMap
+Nominatim API
+
+  --------------------
+  COMPARISON SUMMARY
+  --------------------
+
+Google Maps: - Commercial service - Requires API key - High precision -
+Paid beyond free quota - Simpler implementation
+
+Nominatim: - Open-source service - Requires proxy and identification -
+Free to use (with usage policy compliance) - Requires more request
+handling logic - Demonstrates architectural layering
+
+  -----------------
+  PROJECT PURPOSE
+  -----------------
+
+This repository demonstrates two different approaches to geocoding
+automation using Google Apps Script:
+
+-   Direct commercial API integration (Google Maps)
+-   Open-source API integration with proxy architecture (Nominatim)
+
+It highlights: - API integration - Error handling - Retry strategies -
+Modular organization - Separation of responsibilities - Real-world
+automation workflows
+
+End of document.
