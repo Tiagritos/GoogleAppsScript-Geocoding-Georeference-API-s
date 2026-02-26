@@ -37,7 +37,11 @@ Key Characteristics:
 
 Architecture:
 
-Google Sheets ↓ Apps Script ↓ Google Maps Geocoding API
+Google Sheets 
+    ↓ 
+Apps Script 
+    ↓ 
+Google Maps Geocoding API
 
   -------------------------------------------
   2) OPENSTREETMAP NOMINATIM IMPLEMENTATION
@@ -71,8 +75,13 @@ Key Characteristics:
 
 Architecture:
 
-Google Sheets ↓ Apps Script (Client) ↓ Proxy Worker ↓ OpenStreetMap
-Nominatim API
+Google Sheets 
+     ↓ 
+Apps Script (Client) 
+     ↓ 
+Proxy Worker 
+     ↓ 
+OpenStreetMap Nominatim API
 
   --------------------
   COMPARISON SUMMARY
